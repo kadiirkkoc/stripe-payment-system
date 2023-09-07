@@ -15,4 +15,5 @@ public class CustomerDto {
     private String phone;
     private Address address;
     private Map<String,Object> additionalInfo = new HashMap<>();
+    private String testToken;
 }

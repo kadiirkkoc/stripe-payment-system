@@ -34,7 +34,7 @@ public class Controller {
         return paymentService.createCardToken(tokenDto);
     }
 
-    @PostMapping("/create/payment/method")
+    @PostMapping("/payment-method")
     public PaymentMethod createPaymentMethod(@RequestBody TokenDto tokenDto) throws StripeException{
         return paymentService.createPaymentMethod(tokenDto);
     }

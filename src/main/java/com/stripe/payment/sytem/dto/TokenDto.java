@@ -8,4 +8,5 @@ public class TokenDto {
     private int exp_month;
     private int exp_year;
     private String cvc;
+    private String token;
 }

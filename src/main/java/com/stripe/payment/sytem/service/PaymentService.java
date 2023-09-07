@@ -5,6 +5,8 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.*;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.ChargeCreateParams;
+import com.stripe.param.CustomerUpdateParams;
+import com.stripe.param.PaymentMethodAttachParams;
 import com.stripe.payment.sytem.dto.ChargeDto;
 import com.stripe.payment.sytem.dto.CustomerDto;
 import com.stripe.payment.sytem.dto.PaymentIntentDto;
@@ -34,6 +36,7 @@ public class PaymentService {
         customerParams.put("description",customerDto.getDescription());
         customerParams.put("phone",customerDto.getPhone());
         customerParams.put("address",customerDto.getAddress());
+        customerParams.put("testToken",customerDto.getTestToken());
 
         Map<String, Object> metaData = new HashMap<>();
         metaData.put("id", customerDto.getCustomerId());
@@ -53,21 +56,19 @@ public class PaymentService {
         card.put("cvc", tokenDto.getCvc());
         Map<String, Object> params = new HashMap<>();
         params.put("card", card);
-
         Token token = Token.create(params);
         return token;
     }
 
     public PaymentMethod createPaymentMethod(TokenDto tokenDto) throws StripeException {
-        Map<String, Object> card = new HashMap<>();
-        card.put("number", tokenDto.getNumber());
-        card.put("exp_month", tokenDto.getExp_month());
-        card.put("exp_year", tokenDto.getExp_year());
-        card.put("cvc", tokenDto.getCvc());
+//        Map<String, Object> card = new HashMap<>();
+//        card.put("number", tokenDto.getNumber());
+//        card.put("exp_month", tokenDto.getExp_month());
+//        card.put("exp_year", tokenDto.getExp_year());
+//        card.put("cvc", tokenDto.getCvc());
         Map<String, Object> params = new HashMap<>();
         params.put("type","card");
-        params.put("card", card);
-
+        params.put("card[token]", tokenDto.getToken());
         PaymentMethod paymentMethod = PaymentMethod.create(params);
         System.out.println("Created PaymentMethod ID: " + paymentMethod.getId());
         return paymentMethod;
@@ -89,23 +90,27 @@ public class PaymentService {
     }
 
     public Charge createCharge(ChargeDto chargeDto) throws StripeException{
-        try {
             RequestOptions requestOptions = RequestOptions.builder().setApiKey(stripeApiKey).build();
             ChargeCreateParams params = ChargeCreateParams.builder()
                     .setAmount(chargeDto.getAmount())
                     .setCurrency(chargeDto.getCurrency())
                     .setSource(chargeDto.getTestToken())
+                    .setCustomer(chargeDto.getCustomerId())
                     .build();
 
             Charge charge = Charge.create(params, requestOptions);
 
             System.out.println("Ödeme başarılı! Ödeme ID: " + charge.getId());
             return charge;
-        } catch (StripeException e) {
-            e.printStackTrace();
-            return null;
-        }
     }
 
+
+    public PaymentMethod attachTestTokenToCustomer(Customer customer,PaymentMethod paymentMethod) throws StripeException {
+            paymentMethod = com.stripe.model.PaymentMethod.retrieve(paymentMethod.getId());
+            Map<String, Object> params = new HashMap<>();
+            params.put("customer", customer.getId());
+            paymentMethod = paymentMethod.attach(params);
+            return paymentMethod;
+    }
 
 }
