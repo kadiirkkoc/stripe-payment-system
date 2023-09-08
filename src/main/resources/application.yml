@@ -1,5 +1,4 @@
 
-
 api:
-  secret:
-    key: '***'
+  stripe:
+    key: 'sk_test_51NhpWRBI2NXRnicm8ThdrGmHI5CLVO7ZrJHDDFDjyyMgjRUlObi7BjFoGHI6Gc7kDmdextP7StV0uVAwNoF6thhB00KUzgsnEv'
