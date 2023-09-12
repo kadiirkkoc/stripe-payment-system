@@ -3,16 +3,15 @@ package com.stripe.payment.sytem.service;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;
-import com.stripe.net.RequestOptions;
-import com.stripe.net.StripeResponse;
-import com.stripe.param.ChargeCreateParams;
 
 import com.stripe.payment.sytem.dto.*;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -26,127 +25,141 @@ public class PaymentService {
         Stripe.apiKey = stripeApiKey;
     }
 
-    public CustomerDto createCustomer(CustomerDto customerDto) throws StripeException {
-        Map<String, Object> customerParams = new HashMap<>();
-        customerParams.put("name",customerDto.getName());
-        customerParams.put("email",customerDto.getEmail());
-        customerParams.put("description",customerDto.getDescription());
-        customerParams.put("phone",customerDto.getPhone());
-        customerParams.put("address",customerDto.getAddress());
-
-        Map<String, Object> metaData = new HashMap<>();
-        metaData.put("id", customerDto.getCustomerId());
-        metaData.putAll(customerDto.getAdditionalInfo());
-
-        customerParams.put("metadata",metaData);
-
-        Customer customer = Customer.create(customerParams);
-
-        CustomerDto customerDto1 = new CustomerDto();
-        customerDto1.setCustomerId(customer.getId());
-        customerDto1.setName(customer.getName());
-        customerDto1.setEmail(customer.getEmail());
-        customerDto1.setDescription(customer.getDescription());
-        customerDto1.setPhone(customer.getPhone());
-        customerDto1.setAddress(customer.getAddress());
-
-        return customerDto1;
-    }
-
     public TokenDto createCardToken(TokenDto tokenDto) throws StripeException {
-        try {
-            Map<String, Object> cardParams = new HashMap<>();
-            cardParams.put("number", "4242424242424242");
-            cardParams.put("exp_month", 8);
-            cardParams.put("exp_year", 2024);
-            cardParams.put("cvc", "123");
 
-//            cardParams.put("number", tokenDto.getNumber());
-//            cardParams.put("exp_month", tokenDto.getExp_month());
-//            cardParams.put("exp_year", tokenDto.getExp_year());
-//            cardParams.put("cvc", tokenDto.getCvc());
+        Map<String, Object> cardParams = new HashMap<>();
+        cardParams.put("number", "4242424242424242");
+        cardParams.put("exp_month", "8");
+        cardParams.put("exp_year", "24" );
+        cardParams.put("cvc", "314");
+        Map<String, Object> params = new HashMap<>();
+        params.put("card", cardParams);
+        Token token = Token.create(params);
 
-            Map<String, Object> tokenParams = new HashMap<>();
-            tokenParams.put("card", cardParams);
-
-            Token token = Token.create(tokenParams);
-
-            if (token != null && token.getId() != null) {
+        if (token != null && token.getId() != null) {
                 tokenDto.setSuccess(true);
                 tokenDto.setTokenId(token.getId());
                 tokenDto.setExp_month(Math.toIntExact(token.getCard().getExpMonth()));
                 tokenDto.setExp_year(Math.toIntExact(token.getCard().getExpYear()));
             }
-            return tokenDto;
+        return tokenDto;
+    }
+
+    private Customer createCustomer(PaymentMethod paymentMethod,SubscriptionDto subscriptionDto){
+
+        try {
+
+            Map<String, Object> customerMap = new HashMap<>();
+            customerMap.put("name", subscriptionDto.getUsername());
+            customerMap.put("email", subscriptionDto.getEmail());
+            customerMap.put("payment_method", paymentMethod.getId());
+
+            return Customer.create(customerMap);
         } catch (StripeException e) {
-            throw e;
+            throw new RuntimeException(e.getMessage());
         }
     }
 
+    public ChargeDto createCharge(ChargeDto chargeDto) {
+        try {
+            chargeDto.setSuccess(false);
+            Map<String, Object> params = new HashMap<>();
+            params.put("amount", chargeDto.getAmount());
+            params.put("currency", "usd");
+            params.put("source", chargeDto.getToken());
+            params.put(
+                    "description",
+                    "payment for id" + chargeDto.getAdditionalInfo().getOrDefault("id_tag","")
+            );
+            Map<String , Object> metaData = new HashMap<>();
+            metaData.put("id",chargeDto.getChargeId());
+            metaData.putAll(chargeDto.getAdditionalInfo());
+            params.put("metadata",metaData);
+            Charge charge = Charge.create(params);
+            chargeDto.setMessage(charge.getOutcome().getSellerMessage());
 
-    public PaymentDto createPaymentMethod(TokenDto tokenDto) throws StripeException {
+            if (charge.getPaid()){
+                chargeDto.setChargeId(charge.getId());
+                chargeDto.setSuccess(true);
+            }
+            return chargeDto;
+        }
+        catch (StripeException e){
+            throw new RuntimeException(e.getMessage());
+        }
+    }
 
+    public SubscriptionResponse createSubscription(SubscriptionDto subscriptionDto) throws StripeException {
+        PaymentMethod paymentMethod = createPaymentMethod(subscriptionDto);
+        Customer customer = createCustomer(paymentMethod, subscriptionDto);
+        paymentMethod = attachCustomerToPaymentMethod(customer, paymentMethod);
+        Subscription subscription = createSubscription(subscriptionDto, paymentMethod, customer);
 
-        Map<String, Object> cardParams = new HashMap<>();
-        cardParams.put("number", tokenDto.getNumber());
-        cardParams.put("exp_month", tokenDto.getExp_month());
-        cardParams.put("exp_year", tokenDto.getExp_year());
-        cardParams.put("cvc", tokenDto.getCvc());
+        return createResponse(subscriptionDto,paymentMethod,customer,subscription);
+    }
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("type","card");
-        params.put("card", cardParams);
+    private PaymentMethod createPaymentMethod(SubscriptionDto subscriptionDto){
+        try {
+            Map<String, Object> cardParams = new HashMap<>();
+            cardParams.put("number", "4242424242424242");
+            cardParams.put("exp_month", "8");
+            cardParams.put("exp_year", "24" );
+            cardParams.put("cvc", "314");
 
-        PaymentMethod paymentMethod = PaymentMethod.create(params);
-        PaymentDto paymentDto = new PaymentDto();
-        paymentDto.setId(paymentMethod.getId());
+            Map<String, Object> params = new HashMap<>();
+            params.put("type","card");
+            params.put("card", cardParams);
 
-        System.out.println("Created PaymentMethod ID: " + paymentMethod.getId());
-        return paymentDto;
+            return PaymentMethod.create(params);
+        }catch (StripeException e){
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    private SubscriptionResponse createResponse(SubscriptionDto subscriptionDto,PaymentMethod paymentMethod,
+                                                Customer customer,Subscription subscription){
+
+        return SubscriptionResponse.builder()
+                .username(subscriptionDto.getUsername())
+                .PaymentMethodId(paymentMethod.getId())
+                .SubscriptionId(subscription.getId())
+                .CustomerId(customer.getId())
+                .build();
     }
 
 
-    public Charge createCharge(ChargeDto chargeDto) throws StripeException{
-            RequestOptions requestOptions = RequestOptions.builder().setApiKey(stripeApiKey).build();
-            ChargeCreateParams params = ChargeCreateParams.builder()
-                    .setAmount(chargeDto.getAmount())
-                    .setCurrency(chargeDto.getCurrency())
-                    .setCustomer(chargeDto.getCustomerId())
-                    .setSource(chargeDto.getSource())
-                    .build();
+    private PaymentMethod attachCustomerToPaymentMethod(Customer customer,PaymentMethod paymentMethod){
+        try {
+            paymentMethod = PaymentMethod.retrieve(paymentMethod.getId());
+            Map<String,Object> params = new HashMap<>();
+            params.put("customer",customer.getId());
+            paymentMethod = paymentMethod.attach(params);
+            return paymentMethod;
 
-            Charge charge = Charge.create(params, requestOptions);
-
-            return charge;
+        } catch (StripeException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-//    public ResponseEntity<Object> attachTokenToCustomer(String customerId) throws StripeException {
-//        PaymentMethod paymentMethod =
-//                PaymentMethod.retrieve(
-//                        "pm_1Np96oBI2NXRnicm870Jz7Lg"
-//                );
-//
-//        Map<String, Object> params = new HashMap<>();
-//        params.put("customer", "cus_OZkQGia7T8eY0B");
-//
-//        PaymentMethod updatedPaymentMethod =
-//                paymentMethod.attach(params);
-//
-//    }
+    private Subscription createSubscription(SubscriptionDto subscriptionDto,PaymentMethod paymentMethod,Customer customer){
+        try {
+            List<Object> items = new ArrayList<>();
+            Map<String, Object> item1 = new HashMap<>();
+            item1.put(
+                    "price",
+                    subscriptionDto.getPriceId()
+            );
+            item1.put("quantity",subscriptionDto.getNumberOfLisence());
+            items.add(item1);
 
-    public PaymentMethod abc() throws StripeException {
-        Map<String, Object> card = new HashMap<>();
-        card.put("number", "4242424242424242");
-        card.put("exp_month", 12);
-        card.put("exp_year", 2034);
-        card.put("cvc", "314");
-        Map<String, Object> params = new HashMap<>();
-        params.put("type", "card");
-        params.put("card", card);
+            Map<String, Object> params = new HashMap<>();
+            params.put("customer", customer.getId());
+            params.put("default_payment_method", paymentMethod.getId());
+            params.put("items", items);
+            return Subscription.create(params);
 
-        PaymentMethod paymentMethod =
-                PaymentMethod.create(params);
-        return paymentMethod;
+        } catch (StripeException e) {
+            throw new RuntimeException(e);
+        }
     }
-
 }
