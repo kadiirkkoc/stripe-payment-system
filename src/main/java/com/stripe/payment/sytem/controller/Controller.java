@@ -1,10 +1,7 @@
 package com.stripe.payment.sytem.controller;
 
 import com.stripe.exception.StripeException;
-import com.stripe.model.Charge;
-import com.stripe.model.Customer;
-import com.stripe.model.PaymentMethod;
-import com.stripe.model.Token;
+import com.stripe.model.*;
 import com.stripe.payment.sytem.dto.ChargeDto;
 import com.stripe.payment.sytem.dto.CustomerDto;
 import com.stripe.payment.sytem.dto.TokenDto;
@@ -25,18 +22,18 @@ public class Controller {
     }
 
     @PostMapping("/create/customer")
-    public Customer createCustomer(@RequestBody CustomerDto customerDto) throws StripeException {
+    public CustomerDto createCustomer(@RequestBody CustomerDto customerDto) throws StripeException {
           return paymentService.createCustomer(customerDto);
     }
 
-    @PostMapping("/create/card")
-    public Token createToken(@RequestBody TokenDto tokenDto) throws StripeException {
+    @PostMapping("/create/cardToken")
+    public TokenDto createToken(@RequestBody TokenDto tokenDto) throws StripeException {
         return paymentService.createCardToken(tokenDto);
     }
 
     @PostMapping("/payment-method")
-    public PaymentMethod createPaymentMethod(@RequestBody TokenDto tokenDto) throws StripeException{
-        return paymentService.createPaymentMethod(tokenDto);
+    public PaymentMethod createPaymentMethod() throws StripeException{
+        return paymentService.createPaymentMethod();
     }
 
     @PostMapping("/charge")
