@@ -7,5 +7,5 @@ public class ChargeDto {
     private Long amount;
     private String currency;
     private String customerId;
-    private String testToken;
+    private String source;
 }
