@@ -29,3 +29,21 @@ git clone https://github.com/kadiirkkoc/stripe-payment-system.git
 ```
 cd stripe-payment-service
 ```
+- Build the project using Gradle:
+```
+./gradlew build
+```
+- Run the application:
+```
+./gradlew bootRun
+```
+
+## Usage
+Once the application is up and running, you can start integrating it with your web application to handle Stripe payments. See the Endpoints section for details on available API endpoints.
+
+## Configuration
+Stripe API Key
+To configure your Stripe API key, open the application.properties file and set your Stripe secret key:
+```
+stripe.api.key=your_stripe_secret_key
+```
