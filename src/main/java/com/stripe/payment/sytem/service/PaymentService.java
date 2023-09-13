@@ -27,22 +27,24 @@ public class PaymentService {
 
     public TokenDto createCardToken(TokenDto tokenDto) throws StripeException {
 
-        Map<String, Object> cardParams = new HashMap<>();
-        cardParams.put("number", "4242424242424242");
-        cardParams.put("exp_month", "8");
-        cardParams.put("exp_year", "24" );
-        cardParams.put("cvc", "314");
-        Map<String, Object> params = new HashMap<>();
-        params.put("card", cardParams);
-        Token token = Token.create(params);
-
-        if (token != null && token.getId() != null) {
+        try {
+            Map<String, Object> card = new HashMap<>();
+            card.put("number", tokenDto.getCardNumber());
+            card.put("exp_month", tokenDto.getExpMonth());
+            card.put("exp_year", tokenDto.getExpYear());
+            card.put("cvc", tokenDto.getCvc());
+            Map<String, Object> params = new HashMap<>();
+            params.put("card", card);
+            Token token = Token.create(params);
+            if (token != null && token.getId() != null) {
                 tokenDto.setSuccess(true);
-                tokenDto.setTokenId(token.getId());
-                tokenDto.setExp_month(Math.toIntExact(token.getCard().getExpMonth()));
-                tokenDto.setExp_year(Math.toIntExact(token.getCard().getExpYear()));
+                tokenDto.setToken(token.getId());
             }
-        return tokenDto;
+            return tokenDto;
+        } catch (StripeException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+
     }
 
     private Customer createCustomer(PaymentMethod paymentMethod,SubscriptionDto subscriptionDto){
@@ -58,6 +60,7 @@ public class PaymentService {
         } catch (StripeException e) {
             throw new RuntimeException(e.getMessage());
         }
+
     }
 
     public ChargeDto createCharge(ChargeDto chargeDto) {
@@ -101,10 +104,10 @@ public class PaymentService {
     private PaymentMethod createPaymentMethod(SubscriptionDto subscriptionDto){
         try {
             Map<String, Object> cardParams = new HashMap<>();
-            cardParams.put("number", "4242424242424242");
-            cardParams.put("exp_month", "8");
-            cardParams.put("exp_year", "24" );
-            cardParams.put("cvc", "314");
+            cardParams.put("number", subscriptionDto.getCardNumber());
+            cardParams.put("exp_month", subscriptionDto.getExp_month());
+            cardParams.put("exp_year", subscriptionDto.getExp_year());
+            cardParams.put("cvc", subscriptionDto.getCvc());
 
             Map<String, Object> params = new HashMap<>();
             params.put("type","card");
